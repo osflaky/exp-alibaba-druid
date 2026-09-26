@@ -1,0 +1,2 @@
+# Check out this module's Java sources with LF on every OS so spring-javaformat validation passes on Windows
+*.java text eol=lf
