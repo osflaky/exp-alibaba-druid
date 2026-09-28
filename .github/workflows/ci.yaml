@@ -1,0 +1,41 @@
+name: Java CI
+
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        java: [8, 11, 17, 21]
+      fail-fast: false
+      max-parallel: 16
+    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # spring-javaformat in druid-demo-petclinic rejects CRLF checkouts
+    - run: git config --global core.autocrlf false
+    - uses: actions/checkout@v4
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+        cache: 'maven'
+    - name: Build with Maven if test jdk8
+      if: ${{ matrix.java == '8' || matrix.java == '11'}}
+      run: ./mvnw -Pgen-javadoc clean package -B
+    - name: Build with Maven if test jdk17
+      if: ${{ matrix.java == '17' || matrix.java == '21' }}
+      run: ./mvnw -Penable-for-jdk17+,gen-code-cov clean package -B
+    - name: "Codecov if test jdk17"
+      if: ${{ matrix.java == '17' }}
+      uses: codecov/codecov-action@v3.1.0
+      with:
+        files: 
+          ./core/target/site/jacoco/jacoco.xml,./druid-spring-boot-starter/target/site/jacoco/jacoco.xml,./druid-spring-boot-3-starter/target/site/jacoco/jacoco.xml
+    timeout-minutes: 150
