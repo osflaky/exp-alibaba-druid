@@ -1,0 +1,48 @@
+name: Java CI
+
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: macos-latest
+          java: 21
+          arch: arm64
+          runner: macos-latest
+          expander_leg: macos-latest-21-arm64
+      max-parallel: 16
+    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }} [${{ matrix.expander_leg
+      }}]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+          # Temurin publishes no JDK 8 build for Windows on arm64. On that leg we install
+          # the x64 JDK 8, which runs on windows-11-arm through the built-in x64 emulation.
+        architecture: ${{ (matrix.os == 'windows-latest' && matrix.arch == 
+          'arm64' && matrix.java == '8') && 'x64' || matrix.arch }}
+        cache: 'maven'
+    - name: Build with Maven if test jdk8
+      if: ${{ matrix.java == '8' || matrix.java == '11'}}
+      run: ./mvnw -Pgen-javadoc clean package -B
+    - name: Build with Maven if test jdk17
+      if: ${{ matrix.java == '17' || matrix.java == '21' }}
+      run: ./mvnw "-Penable-for-jdk17+,gen-code-cov" clean package -B
+    - name: "Codecov if test jdk17"
+      if: ${{ matrix.java == '17' }}
+        # v3.1.0 runs Codecov's legacy uploader, which is built for only one CPU type.
+        # On macos-15-intel the spawn fails with EBADARCH (-86). v5 uses the Codecov CLI
+        # wrapper, which picks a binary that matches the runner's OS and architecture.
+      uses: codecov/codecov-action@v5
+      with:
+        files: 
+          ./core/target/site/jacoco/jacoco.xml,./druid-spring-boot-starter/target/site/jacoco/jacoco.xml,./druid-spring-boot-3-starter/target/site/jacoco/jacoco.xml
+    timeout-minutes: 150
