@@ -1,0 +1,4 @@
+# spring-javaformat validates against LF line endings; keep sources LF on every
+# platform so Windows checkouts (core.autocrlf=true) don't produce CRLF files
+# that fail the formatting check.
+*.java text eol=lf
